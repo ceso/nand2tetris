@@ -42,5 +42,35 @@ CHIP ALU {
         ng; // 1 if (out < 0),  0 otherwise
 
     PARTS:
-   // Put you code here:
+    // choose if pick x/y or set them to 0
+    Mux16(a=y, b=false, sel=zy, out=zyout);
+    Mux16(a=x, b=false, sel=zx, out=zxout);
+
+    // handling of nx and ny
+    Not16(in=zxout, out=notzxout);
+    Mux16(a=zxout, b=notzxout, sel=nx, out=nxnotnxout);
+    Not16(in=zyout, out=notzyout);
+    Mux16(a=zyout, b=notzyout, sel=ny, out=nynotnyout);
+
+    // compute f
+    And16(a=nxnotnxout, b=nynotnyout, out=xandy);
+    Add16(a=nxnotnxout, b=nynotnyout, out=xplusy);
+    Mux16(a=xandy, b=xplusy, sel=f, out=outf);
+    // negate out of f
+    Not16(in=outf, out=notoutf);
+
+    // choose final output between f or !f
+    // get ng by assign MSB (out[15]) to it, if the MSB is 1 then
+    // the number is negative, else the MSB will be 0
+    // and divide the output in two halfs to with them get if
+    // the number is 0 or not
+    Mux16(a=outf, b=notoutf, sel=no, out[15]=ng, out[0..7]=half1, out[8..15]=half2, out=out);
+
+    // if all numbers in half1[8] are 0, and all numbers in half2[8] also are 0
+    // then Or of them will out 0, do not of it, so with that zr will be 1 when
+    // the number is 0 
+    Or8Way(in=half1, out=orhalf1);
+    Or8Way(in=half2, out=orhalf2);
+    Or(a=orhalf1, b=orhalf2, out=orh1h2);
+    Not(in=orh1h2, out=zr);
 }
