@@ -27,5 +27,23 @@ CHIP Memory {
     OUT out[16];
 
     PARTS:
-    // Put your code here:
+    // if address[14] is 0 then ramload else screen load
+    DMux(in=load, sel=address[14], a=ramload, b=scrload);
+    // load values into ram or screen into the specified address based on previous load val. got
+    RAM16K(in=in, load=ramload, address=address[0..13], out=ramout);
+    Screen(in=in, load=scrload, address=address[0..12], out=scrout);
+    // read keyboard event
+    Keyboard(out=scancode);
+
+    // read from memory, choose from which which one using MSB (10 - RAM|01 Screen|11 Keyboard)
+    Mux4Way16(a=ramout, b=ramout, c=scrout, d=scancode, sel=address[13..14], out=out);
 }
+
+/* 
+Hack specification: LSB (A[0]) && MSB (a[14])
+
+RAM16K:   0     to 16383 (000000000000000 to 111111111111110) (0x0000 to 0x3FFF) <-- bit 14 always 0
+Screen:   16384 to 24575 (000000000000001 to 111111111111101) (0x4000 to 0x5FFF) <-- bit 14 always 1 and bit 13 always 0
+Keyboard: ..... .. 24576 (............... .. 000000000000011) (...... .. 0x6000) <-- bit 14 and 13 always 1
+*/
+

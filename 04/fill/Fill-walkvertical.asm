@@ -74,6 +74,14 @@
     0;JMP
 
 (NEXTCOL)
+  @16384
+  D=A
+  @R1
+  M=D  
+  @256
+  D=A
+  @R1
+  M=M+D
 //  @32
  // D=A
  // @addrscr
