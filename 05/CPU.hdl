@@ -39,5 +39,9 @@ CHIP CPU {
         pc[15];          // address of next instruction
 
     PARTS:
-    // Put your code here:
+    /* ARegister
+       - load instruction if inst. is A (instruction[15] == 0)
+       - */
+    Mux16(a=instruction, b=aluOut, sel=instruction[15], out=inA);
+    
 }
