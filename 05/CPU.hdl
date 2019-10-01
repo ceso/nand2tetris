@@ -39,9 +39,63 @@ CHIP CPU {
         pc[15];          // address of next instruction
 
     PARTS:
-    /* ARegister
-       - load instruction if inst. is A (instruction[15] == 0)
-       - */
+    /*
+      Hack specification: LSB (A[0]) && MSB (A[15])
+      C-instruction: ixxacccccdddjjj -> jjjdddcccccaxxi
+      then:
+      ->  j  j  j  d  d  d  c  c  c  c  c  c  a  x  x  i
+          00 01 02 03 04 05 06 07 08 09 10 11 12 13 14 15
+
+      ARegister
+        - if instrcution[15] is 0, then is A, else is C
+        - in case C instruction, check if the instruction[5] is 1 (dest is A)
+        And load instruction into ARegister if the load value says it
+    */
     Mux16(a=instruction, b=aluOut, sel=instruction[15], out=inA);
-    
+    Not(in=instruction[15], out=notinstruction);
+    Or(a=notinstruction, b=instruction[5], out=loadA);
+    ARegister(in=inA, load=loadA, out=outA, out[0..14]=addressM);
+    And(a=instruction[15], b=instruction[3], out=writeM);
+    /* if inst. A then use out from reg. A, otherwise
+       if inst. C and bit a off, then use out from reg. A
+       else inst. C and bit a on use inM 
+    */
+    And(a=instruction[15], b=instruction[12], out=amSwitch);
+    Mux16(a=outA, b=inM, sel=amSwitch, out=outAM);
+
+    // DRegister
+    And(a=instruction[15], b=instruction[4], out=loadD);
+    DRegister(in=aluOut, load=loadD, out=outD);
+
+    // ALU Managment
+    ALU(x=outD, y=outAM, out=aluOut, out=outM, 
+        zx=instruction[11], nx=instruction[10],
+        zy=instruction[9],  ny=instruction[8],
+         f=instruction[7],  no=instruction[6],
+        zr=zrOut, ng=ngOut);
+
+    Not(in=ngOut, out=notNg);
+    Not(in=zrOut, out=notZr);
+    And(a=notNg, b=notZr, out=notNgZr);
+    And(a=ngOut, b=notZr, out=ngNotZr);
+    /*
+      Compute if C inst. which jump bits enabled:
+        if      j1 j2 = 0 and j3 = 1 <- then jgt 1
+        else if j1 j3 = 0 and j2 = 1 <- then jeq 1
+        else if j2 j3 = 0 and j1 = 1 <- then jlt 1
+    */
+    And(a=instruction[15], b=instruction[0], out=jgt);
+    And(a=notNgZr, b=jgt, out=gotold1);
+
+    And(a=instruction[15], b=instruction[1], out=jeq);
+    And(a=zrOut, b=jeq, out=gotold2);
+
+    And(a=instruction[15], b=instruction[2], out=jlt);   
+    And(a=jlt, b=ngOut, out=gotold3);
+
+    Or(a=gotold1, b=gotold2, out=gotold12);
+    Or(a=gotold12, b=gotold3, out=loadPC); 
+
+    PC(in=outA, load=loadPC, inc=true, reset=reset, out[0..14]=pc);
 }
+
