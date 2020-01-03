@@ -1,3 +1,4 @@
-*/*.cmp
-*/*.tst
-*/*.out
+**.cmp
+**.tst
+**.out
+**__pycache__
